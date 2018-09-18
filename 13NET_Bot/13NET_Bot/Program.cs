@@ -1,18 +1,21 @@
 ﻿using System;
 using System.Data;
-
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StackExchange.Redis;
 
 namespace _13NET_Bot
 {
     class Program
-    {
+    {                
         static void Main(string[] args)
         {
-            var _client = ConnectionMultiplexer.Connect("localhost");
-            var db = _client.GetDatabase();
-            var pub = _client.GetSubscriber();
-            var sub = _client.GetSubscriber();
+            var _RedisClient = ConnectionMultiplexer.Connect("localhost");
+            var db = _RedisClient.GetDatabase();
+            var pub = _RedisClient.GetSubscriber();
+            var sub = _RedisClient.GetSubscriber();
             int perguntaID = 0;            
 
             sub.Subscribe("perguntas", (channel, msg) =>
@@ -27,10 +30,13 @@ namespace _13NET_Bot
                 if (string.IsNullOrEmpty(resposta))
                     resposta = AkiFlaviorAnswer(pergunta, perguntaID);
 
+                if (string.IsNullOrEmpty(resposta))
+                    resposta = BotAnswer(pergunta);
+                
                 Console.WriteLine($"Resposta: {resposta}");
 
                 db.HashSet($"p{++perguntaID}", new HashEntry[] { new HashEntry("AkiFlavior", resposta) });
-                pub.Publish("Respostas", resposta);
+                pub.Publish("respostas", resposta);
             });
 
             Console.ReadLine();
@@ -92,6 +98,36 @@ namespace _13NET_Bot
 
 
             }
+        }
+
+        static string BotAnswer(string pergunta)
+        {           
+            string baseUrl = @"http://sandbox.api.simsimi.com/request.p";
+            string key = "8ec6296f-323a-4af9-b2e4-72ed6f8831c7";
+            string lc = "pt";
+            double filter = 1;
+            string requestUri = $"?key={key}&lc={lc}&ft={filter}&text={pergunta}";
+            string resposta = string.Empty;
+            
+            var _botClient = new HttpClient();
+            _botClient.BaseAddress = new Uri(baseUrl);
+            _botClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            Console.WriteLine($"Enviando o request: {baseUrl}{requestUri}");
+            using (var response = _botClient.GetAsync(requestUri).GetAwaiter().GetResult())
+            {
+                using (HttpContent content = response.Content)
+                {
+                    var jsonString = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                    var token = JToken.Parse(jsonString);
+                    resposta = token["response"].ToObject<string>();
+                }
+            }
+
+            if (string.IsNullOrEmpty(resposta))
+                return null;
+            else
+                return resposta;
         }
     }
 }
