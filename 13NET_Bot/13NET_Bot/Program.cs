@@ -12,38 +12,52 @@ namespace _13NET_Bot
     {                
         static void Main(string[] args)
         {
-            var _RedisClient = ConnectionMultiplexer.Connect("localhost");
+            var _RedisClient = ConnectionMultiplexer.Connect("191.232.234.20");
             var db = _RedisClient.GetDatabase();
             var pub = _RedisClient.GetSubscriber();
             var sub = _RedisClient.GetSubscriber();
-            int perguntaID = 0;            
+                      
 
             sub.Subscribe("perguntas", (channel, msg) =>
             {
-                var pergunta = msg.ToString();
-                var canal = channel.ToString();
+                var mensagem = msg.ToString();
 
-                Console.WriteLine($"Pergunta: {pergunta}");
+                if (mensagem.Contains(":"))
+                {                    
+                    var perguntaID = mensagem.Substring(0, mensagem.IndexOf(":"));
 
-                string resposta = CalculatedAnswer(pergunta.Replace("?", ""));
+                    if (!string.IsNullOrEmpty(perguntaID))
+                    {
+                        var pergunta = mensagem.Replace($"{perguntaID}:", "");
+                        var canal = channel.ToString();
 
-                if (string.IsNullOrEmpty(resposta))
-                    resposta = AkiFlaviorAnswer(pergunta, perguntaID);
+                        Console.WriteLine($"Pergunta: {pergunta}");
 
-                if (string.IsNullOrEmpty(resposta))
-                    resposta = BotAnswer(pergunta);
-                
-                Console.WriteLine($"Resposta: {resposta}");
+                        string resposta = string.Empty;                        
 
-                db.HashSet($"p{++perguntaID}", new HashEntry[] { new HashEntry("AkiFlavior", resposta) });
-                pub.Publish("respostas", resposta);
+                        if (string.IsNullOrEmpty(resposta))
+                            resposta = CalculatedAnswer(pergunta.Replace("?", ""));
+
+                        if (string.IsNullOrEmpty(resposta))
+                            resposta = BotAnswer(pergunta);
+
+                        if (string.IsNullOrEmpty(resposta))
+                            resposta = AkiFlaviorAnswer(pergunta, perguntaID);
+
+                        Console.WriteLine($"Resposta: {resposta}");
+
+                        db.HashSet($"{perguntaID}", new HashEntry[] { new HashEntry("AkiFlavior", resposta) });
+
+                        pub.Publish($"{perguntaID}", resposta);
+                    }
+                }
             });
 
             Console.ReadLine();
         }
 
         static string CalculatedAnswer(string math)
-        {
+        {            
             object value = null;
             try
             {
@@ -55,9 +69,10 @@ namespace _13NET_Bot
             return value.ToString();
         }
 
-        static string AkiFlaviorAnswer(string pergunta, int perguntaID)
+        static string AkiFlaviorAnswer(string pergunta, string perguntaID)
         {
-            switch(perguntaID)
+            int a = new Random().Next(10);
+            switch(a)
             {
                 case 1:
                     return "Voce mentiu! a primeira pergunta deveria ser 1+1?";                    
@@ -73,7 +88,7 @@ namespace _13NET_Bot
                     return "Cristo e a resposta.";
                 case 7:
                     return "Se o professor nao sabe, imagina eu! ;D";                
-                case 8:
+                default:
                     return $"Nao sei a resposta, entao vou cantar uma musica:   " +
                         $"Pau que nasce tooooooorto " +
                         $"Nunca se endireita " +
@@ -90,13 +105,7 @@ namespace _13NET_Bot
                         $"Segure o tchan " +
                         $"Amarre o tchan " +
                         $"Segure o tchan tchan tchan " +
-                        $"Tchan tchan ";
-                default:
-                    return $"Nao sei a resposta, entao vou ensinar a preparar um miojo:   " +
-                         $"Pegue o miojo";
-
-
-
+                        $"Tchan tchan ";                
             }
         }
 
@@ -105,7 +114,7 @@ namespace _13NET_Bot
             string baseUrl = @"http://sandbox.api.simsimi.com/request.p";
             string key = "8ec6296f-323a-4af9-b2e4-72ed6f8831c7";
             string lc = "pt";
-            double filter = 1;
+            double filter = 0;
             string requestUri = $"?key={key}&lc={lc}&ft={filter}&text={pergunta}";
             string resposta = string.Empty;
             
@@ -113,7 +122,7 @@ namespace _13NET_Bot
             _botClient.BaseAddress = new Uri(baseUrl);
             _botClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            Console.WriteLine($"Enviando o request: {baseUrl}{requestUri}");
+            Console.WriteLine($"Enviando o request para simsimi");
             using (var response = _botClient.GetAsync(requestUri).GetAwaiter().GetResult())
             {
                 using (HttpContent content = response.Content)
