@@ -112,7 +112,7 @@ namespace _13NET_Bot
         static string BotAnswer(string pergunta)
         {           
             string baseUrl = @"http://sandbox.api.simsimi.com/request.p";
-            string key = "8ec6296f-323a-4af9-b2e4-72ed6f8831c7";
+            string key = "8ec6296f-323a-4af9-b2e4-72ed6f8831c788";
             string lc = "pt";
             double filter = 0;
             string requestUri = $"?key={key}&lc={lc}&ft={filter}&text={pergunta}";
